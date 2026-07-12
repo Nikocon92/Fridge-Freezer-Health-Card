@@ -157,7 +157,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
       }
 
       if (!hass.states[entityId]) {
-        element.textContent = 'Entity not found';
+        element.textContent = 'Unavailable';
         return;
       }
 
@@ -236,7 +236,6 @@ class FridgeFreezerHealthCardEditor extends HTMLElement {
     const dayInput = document.createElement('ha-textfield');
     dayInput.type = 'number';
     dayInput.step = '0.1';
-    dayInput.min = '0.1';
     dayInput.max = '365';
     dayInput.value = this._config.history_days;
     dayInput.addEventListener('change', (event) => {
