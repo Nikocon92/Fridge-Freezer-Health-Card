@@ -1,6 +1,6 @@
 const HISTORY_LOOKBACK_HOURS = 24;
 const MOVING_AVERAGE_WINDOW_MINUTES = 5;
-const TREND_STABLE_RATE = 0.5;
+const TREND_STABLE_RATE_CELSIUS_PER_MINUTE = 0.5;
 const HEALTH_WARNING_BAND_CELSIUS = 2;
 const HISTORY_REFRESH_MS = 60 * 1000;
 const DEFAULT_RUNNING_WATTS = 50;
@@ -563,7 +563,10 @@ class FridgeFreezerHealthCard extends HTMLElement {
     return states
       .map((entry) => {
         const value = Number(entry.state);
-        const timestamp = new Date(entry.last_changed || entry.last_updated || entry.lu || 0).getTime();
+        const timestamp = new Date(
+          // `lu` is used by Home Assistant minimal history responses as a compact last_updated timestamp key.
+          entry.last_changed || entry.last_updated || entry.lu || 0,
+        ).getTime();
         if (!Number.isFinite(value) || !Number.isFinite(timestamp) || timestamp <= 0) {
           return null;
         }
@@ -680,11 +683,11 @@ class FridgeFreezerHealthCard extends HTMLElement {
     const minutes = Math.max((latest.timestamp - reference.timestamp) / (60 * 1000), 1);
     const rate = (latest.value - reference.value) / minutes;
 
-    if (rate > TREND_STABLE_RATE) {
+    if (rate > TREND_STABLE_RATE_CELSIUS_PER_MINUTE) {
       return '↑';
     }
 
-    if (rate < -TREND_STABLE_RATE) {
+    if (rate < -TREND_STABLE_RATE_CELSIUS_PER_MINUTE) {
       return '↓';
     }
 
@@ -852,12 +855,12 @@ class FridgeFreezerHealthCard extends HTMLElement {
 
     const ambientValue = this._parseEntityValue(this._config.ambient_temperature_entity);
     this._elements.ambientTempValue.textContent = ambientValue
-      ? `Ambient: ${ambientValue.value.toFixed(1)}${ambientValue.unit ? ` ${ambientValue.unit}` : '°C'}`
+      ? `Ambient: ${ambientValue.value.toFixed(1)}${ambientValue.unit ? ` ${ambientValue.unit}` : ''}`
       : 'Ambient: Unavailable';
 
     const powerValue = this._parseEntityValue(this._config.power_consumption_entity);
     this._elements.powerNowValue.textContent = powerValue
-      ? `${powerValue.value.toFixed(1)}${powerValue.unit ? ` ${powerValue.unit}` : ' W'}`
+      ? `${powerValue.value.toFixed(1)}${powerValue.unit ? ` ${powerValue.unit}` : ''}`
       : 'Unavailable';
 
     this._applyModeScale();
@@ -946,6 +949,7 @@ class FridgeFreezerHealthCardEditor extends HTMLElement {
     root.addEventListener(
       'pointerdown',
       (event) => {
+        // Prevent Lovelace editor drag/reorder handlers from closing picker dropdowns on mobile taps.
         if (event.target.closest && event.target.closest('ha-entity-picker')) {
           event.stopPropagation();
         }
@@ -998,7 +1002,7 @@ class FridgeFreezerHealthCardEditor extends HTMLElement {
     input.value = this._config[key];
     input.addEventListener('change', (event) => {
       const parsedValue = Number(event.target.value);
-      if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+      if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
         event.target.value = this._config[key];
         return;
       }
