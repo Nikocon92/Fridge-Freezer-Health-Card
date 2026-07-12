@@ -1,6 +1,7 @@
 const HISTORY_LOOKBACK_HOURS = 24;
 const MOVING_AVERAGE_WINDOW_MINUTES = 5;
 const TREND_STABLE_RATE = 0.5;
+const HEALTH_WARNING_BAND_CELSIUS = 2;
 const HISTORY_REFRESH_MS = 60 * 1000;
 const DEFAULT_RUNNING_WATTS = 50;
 const DEFAULT_DEFROST_WATTS = 180;
@@ -444,7 +445,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
     this._elements.scaleMin.textContent = `${spec.min}°C`;
     this._elements.scaleIdeal.textContent = `Ideal ${spec.goodMin}°C to ${spec.goodMax}°C`;
     this._elements.scaleMax.textContent = `${spec.max}°C`;
-    this._elements.applianceIcon.textContent = this._config.appliance_type === 'freezer' ? '❄️' : '🧊';
+    this._elements.applianceIcon.textContent = this._config.appliance_type === 'freezer' ? '❄️' : '🌡️';
     this._elements.titleValue.textContent = this._config.card_title || `${spec.label} Health`;
 
     this._elements.tempBar.style.background = `linear-gradient(to right,
@@ -650,8 +651,10 @@ class FridgeFreezerHealthCard extends HTMLElement {
       return { level: 'healthy', text: 'Healthy' };
     }
 
-    const warningBand = 2;
-    if (value >= spec.goodMin - warningBand && value <= spec.goodMax + warningBand) {
+    if (
+      value >= spec.goodMin - HEALTH_WARNING_BAND_CELSIUS
+      && value <= spec.goodMax + HEALTH_WARNING_BAND_CELSIUS
+    ) {
       return { level: 'warning', text: 'Watch' };
     }
 
@@ -940,6 +943,16 @@ class FridgeFreezerHealthCardEditor extends HTMLElement {
     root.appendChild(this._buildNumberField('Compressor running threshold (W)', 'compressor_running_watts'));
     root.appendChild(this._buildNumberField('Defrost threshold (W)', 'defrost_watts'));
 
+    root.addEventListener(
+      'pointerdown',
+      (event) => {
+        if (event.target.closest && event.target.closest('ha-entity-picker')) {
+          event.stopPropagation();
+        }
+      },
+      true,
+    );
+
     this.appendChild(root);
   }
 
@@ -1033,12 +1046,6 @@ class FridgeFreezerHealthCardEditor extends HTMLElement {
     picker.allowCustomEntity = false;
     picker.addEventListener('value-changed', (event) => {
       this._valueChanged(key, event.detail.value);
-    });
-
-    ['click', 'mousedown', 'touchstart'].forEach((eventName) => {
-      picker.addEventListener(eventName, (event) => {
-        event.stopPropagation();
-      });
     });
 
     this._entityPickers.push(picker);
