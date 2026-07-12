@@ -1,4 +1,6 @@
 {
   "name": "Fridge Freezer Health Card",
+  "content_in_root": true,
+  "filename": "fridge-freezer-health-card.js",
   "render_readme": true
 }
