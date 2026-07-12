@@ -2,11 +2,13 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 
-A Home Assistant Lovelace custom card that displays:
+A Home Assistant Lovelace custom card that displays fridge/freezer health using:
 
-- Ambient Temperature
-- Interior Temperature
-- Power Consumption
+- 5-minute moving-average interior temperature with trend arrow (↑ / → / ↓)
+- Fridge or freezer temperature scale bar with ideal range highlighting
+- 24-hour moving-average temperature trend line (color-coded for cold/ideal/hot)
+- 24-hour stats (average, 5% low, 95% high, and current power)
+- 24-hour compressor activity timeline (off/running/defrost)
 
 Each entity is selected through Home Assistant's built-in entity picker in the card editor.
 
@@ -37,4 +39,12 @@ In the card editor, choose:
 - Ambient Temperature entity (°C)
 - Interior Temperature entity (°C)
 - Power Consumption entity (W)
-- History period in days (supports decimals, e.g. `0.5` = 12 hours, `2.5` = 60 hours, max `365`)
+- Card title (optional)
+- Appliance type (`Fridge` or `Freezer`)
+- Compressor running threshold (W)
+- Defrost threshold (W)
+
+Temperature ranges used by the bar and history colors:
+
+- **Fridge** scale `-5°C to 15°C`, ideal `3°C to 10°C`
+- **Freezer** scale `-35°C to 5°C`, ideal `-20°C to -10°C`
