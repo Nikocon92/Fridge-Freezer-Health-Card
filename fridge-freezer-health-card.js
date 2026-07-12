@@ -1,3 +1,6 @@
+const DEFAULT_HISTORY_HOURS = 24;
+const MAX_HISTORY_DAYS = 365;
+
 class FridgeFreezerHealthCard extends HTMLElement {
   static getConfigElement() {
     return document.createElement('fridge-freezer-health-card-editor');
@@ -136,7 +139,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
   _getHoursToShow() {
     const days = Number(this._config.history_days);
     if (!Number.isFinite(days) || days <= 0) {
-      return 24;
+      return DEFAULT_HISTORY_HOURS;
     }
 
     return days * 24;
@@ -236,11 +239,11 @@ class FridgeFreezerHealthCardEditor extends HTMLElement {
     const dayInput = document.createElement('ha-textfield');
     dayInput.type = 'number';
     dayInput.step = '0.1';
-    dayInput.max = '365';
+    dayInput.max = String(MAX_HISTORY_DAYS);
     dayInput.value = this._config.history_days;
     dayInput.addEventListener('change', (event) => {
       const parsedValue = Number(event.target.value);
-      if (!Number.isFinite(parsedValue) || parsedValue <= 0 || parsedValue > 365) {
+      if (!Number.isFinite(parsedValue) || parsedValue <= 0 || parsedValue > MAX_HISTORY_DAYS) {
         event.target.value = this._config.history_days;
         return;
       }
