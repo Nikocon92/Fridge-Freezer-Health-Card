@@ -570,7 +570,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
           // - last_changed
           // - last_updated
           // - lu (compact key in minimal responses)
-          // Fallback to 0 so invalid entries are filtered out by timestamp validation below.
+          // Fallback to 0 so invalid entries are intentionally filtered out by timestamp validation below.
           entry.last_changed || entry.last_updated || entry.lu || 0,
         ).getTime();
         if (!Number.isFinite(value) || !Number.isFinite(timestamp) || timestamp <= 0) {
@@ -686,7 +686,10 @@ class FridgeFreezerHealthCard extends HTMLElement {
       }
     }
 
-    const minutes = Math.max((latest.timestamp - reference.timestamp) / (60 * 1000), 1);
+    const minutes = (latest.timestamp - reference.timestamp) / (60 * 1000);
+    if (minutes < 0.25) {
+      return '→';
+    }
     const rate = (latest.value - reference.value) / minutes;
 
     if (rate > TREND_STABLE_RATE_CELSIUS_PER_MINUTE) {
@@ -825,15 +828,18 @@ class FridgeFreezerHealthCard extends HTMLElement {
     const startTime = endTime - HISTORY_LOOKBACK_HOURS * 60 * 60 * 1000;
     const stepMs = (endTime - startTime) / count;
 
-    const running = Number.isFinite(Number(this._config.compressor_running_watts))
-      ? Number(this._config.compressor_running_watts)
+    const runningConfig = Number(this._config.compressor_running_watts);
+    const defrostConfig = Number(this._config.defrost_watts);
+    const running = Number.isFinite(runningConfig)
+      ? runningConfig
       : DEFAULT_RUNNING_WATTS;
-    const defrost = Number.isFinite(Number(this._config.defrost_watts))
-      ? Number(this._config.defrost_watts)
+    const defrost = Number.isFinite(defrostConfig)
+      ? defrostConfig
       : DEFAULT_DEFROST_WATTS;
 
     let index = 0;
-    let currentValue = Number.isFinite(powerSeries[0].value) ? powerSeries[0].value : 0;
+    const firstPoint = powerSeries.find((point) => Number.isFinite(point.value));
+    let currentValue = firstPoint ? firstPoint.value : 0;
 
     return Array.from({ length: count }).map((_, step) => {
       const targetTime = startTime + step * stepMs;
