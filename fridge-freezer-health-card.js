@@ -151,8 +151,13 @@ class FridgeFreezerHealthCard extends HTMLElement {
     this._content.querySelectorAll('.sensor-value').forEach((element) => {
       const key = element.dataset.entityKey;
       const entityId = this._config[key];
-      if (!entityId || !hass.states[entityId]) {
-        element.textContent = 'Unavailable';
+      if (!entityId) {
+        element.textContent = '—';
+        return;
+      }
+
+      if (!hass.states[entityId]) {
+        element.textContent = 'Entity not found';
         return;
       }
 
@@ -232,9 +237,16 @@ class FridgeFreezerHealthCardEditor extends HTMLElement {
     dayInput.type = 'number';
     dayInput.step = '0.1';
     dayInput.min = '0.1';
+    dayInput.max = '365';
     dayInput.value = this._config.history_days;
     dayInput.addEventListener('change', (event) => {
-      this._valueChanged('history_days', Number(event.target.value));
+      const parsedValue = Number(event.target.value);
+      if (!Number.isFinite(parsedValue) || parsedValue <= 0 || parsedValue > 365) {
+        event.target.value = this._config.history_days;
+        return;
+      }
+
+      this._valueChanged('history_days', parsedValue);
     });
     dayField.appendChild(dayInput);
 

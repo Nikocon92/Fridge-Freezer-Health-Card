@@ -16,4 +16,4 @@ Each entity is selected through Home Assistant's built-in entity picker in the c
    - Ambient Temperature entity (°C)
    - Interior Temperature entity (°C)
    - Power Consumption entity (W)
-   - History period in days (supports decimals, e.g. `0.5` = 12 hours, `2.5` = 60 hours)
+   - History period in days (supports decimals, e.g. `0.5` = 12 hours, `2.5` = 60 hours, max `365`)
