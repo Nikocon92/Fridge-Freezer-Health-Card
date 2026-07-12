@@ -6,6 +6,7 @@ const HEALTH_WARNING_BAND_CELSIUS = 2;
 const HISTORY_REFRESH_MS = 60 * 1000;
 const DEFAULT_RUNNING_WATTS = 50;
 const DEFAULT_DEFROST_WATTS = 180;
+const MAX_POWER_THRESHOLD_WATTS = 10000;
 
 const MODE_SPECS = {
   fridge: {
@@ -565,7 +566,11 @@ class FridgeFreezerHealthCard extends HTMLElement {
       .map((entry) => {
         const value = Number(entry.state);
         const timestamp = new Date(
-          // `lu` is the compact timestamp key returned by Home Assistant minimal history responses.
+          // Home Assistant history entries may provide timestamp fields as:
+          // - last_changed
+          // - last_updated
+          // - lu (compact key in minimal responses)
+          // Fallback to 0 so invalid entries are filtered out by timestamp validation below.
           entry.last_changed || entry.last_updated || entry.lu || 0,
         ).getTime();
         if (!Number.isFinite(value) || !Number.isFinite(timestamp) || timestamp <= 0) {
@@ -828,7 +833,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
       : DEFAULT_DEFROST_WATTS;
 
     let index = 0;
-    let currentValue = powerSeries[0].value;
+    let currentValue = Number.isFinite(powerSeries[0].value) ? powerSeries[0].value : 0;
 
     return Array.from({ length: count }).map((_, step) => {
       const targetTime = startTime + step * stepMs;
@@ -951,7 +956,7 @@ class FridgeFreezerHealthCardEditor extends HTMLElement {
     root.addEventListener(
       'pointerdown',
       (event) => {
-        // Prevent Lovelace editor drag/reorder handlers from closing picker dropdowns on mobile taps.
+        // Prevent Lovelace editor drag/reorder handlers from interfering with picker interactions.
         if (event.target.closest('ha-entity-picker')) {
           event.stopPropagation();
         }
@@ -1001,10 +1006,11 @@ class FridgeFreezerHealthCardEditor extends HTMLElement {
     const input = document.createElement('ha-textfield');
     input.type = 'number';
     input.step = '1';
+    input.max = String(MAX_POWER_THRESHOLD_WATTS);
     input.value = this._config[key];
     input.addEventListener('change', (event) => {
       const parsedValue = Number(event.target.value);
-      if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+      if (!Number.isFinite(parsedValue) || parsedValue < 0 || parsedValue > MAX_POWER_THRESHOLD_WATTS) {
         event.target.value = this._config[key];
         return;
       }
