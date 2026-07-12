@@ -1,5 +1,6 @@
 const HISTORY_LOOKBACK_HOURS = 24;
 const MOVING_AVERAGE_WINDOW_MINUTES = 5;
+// Requested behavior: stable trend when change is up to 0.5°C per minute.
 const TREND_STABLE_RATE_CELSIUS_PER_MINUTE = 0.5;
 const HEALTH_WARNING_BAND_CELSIUS = 2;
 const HISTORY_REFRESH_MS = 60 * 1000;
@@ -564,7 +565,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
       .map((entry) => {
         const value = Number(entry.state);
         const timestamp = new Date(
-          // `lu` is used by Home Assistant minimal history responses as a compact last_updated timestamp key.
+          // `lu` is the compact timestamp key returned by Home Assistant minimal history responses.
           entry.last_changed || entry.last_updated || entry.lu || 0,
         ).getTime();
         if (!Number.isFinite(value) || !Number.isFinite(timestamp) || timestamp <= 0) {
@@ -819,11 +820,12 @@ class FridgeFreezerHealthCard extends HTMLElement {
     const startTime = endTime - HISTORY_LOOKBACK_HOURS * 60 * 60 * 1000;
     const stepMs = (endTime - startTime) / count;
 
-    const runningThreshold = Number(this._config.compressor_running_watts);
-    const defrostThreshold = Number(this._config.defrost_watts);
-
-    const running = Number.isFinite(runningThreshold) ? runningThreshold : DEFAULT_RUNNING_WATTS;
-    const defrost = Number.isFinite(defrostThreshold) ? defrostThreshold : DEFAULT_DEFROST_WATTS;
+    const running = Number.isFinite(Number(this._config.compressor_running_watts))
+      ? Number(this._config.compressor_running_watts)
+      : DEFAULT_RUNNING_WATTS;
+    const defrost = Number.isFinite(Number(this._config.defrost_watts))
+      ? Number(this._config.defrost_watts)
+      : DEFAULT_DEFROST_WATTS;
 
     let index = 0;
     let currentValue = powerSeries[0].value;
@@ -950,7 +952,7 @@ class FridgeFreezerHealthCardEditor extends HTMLElement {
       'pointerdown',
       (event) => {
         // Prevent Lovelace editor drag/reorder handlers from closing picker dropdowns on mobile taps.
-        if (event.target.closest && event.target.closest('ha-entity-picker')) {
+        if (event.target.closest('ha-entity-picker')) {
           event.stopPropagation();
         }
       },
@@ -1002,7 +1004,7 @@ class FridgeFreezerHealthCardEditor extends HTMLElement {
     input.value = this._config[key];
     input.addEventListener('change', (event) => {
       const parsedValue = Number(event.target.value);
-      if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+      if (!Number.isFinite(parsedValue) || parsedValue < 0) {
         event.target.value = this._config[key];
         return;
       }
