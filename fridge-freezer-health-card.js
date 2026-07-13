@@ -564,14 +564,15 @@ class FridgeFreezerHealthCard extends HTMLElement {
   _normalizeHistoryPoints(states) {
     return states
       .map((entry) => {
-        const value = Number(entry.state);
+        // Home Assistant minimal/compact responses use 's' instead of 'state'.
+        const value = Number(entry.state !== undefined ? entry.state : entry.s);
+        // Home Assistant history entries may provide timestamp fields as:
+        // - last_changed / last_updated (ISO strings, classic format)
+        // - lu (Unix timestamp in SECONDS, compact minimal_response format)
+        // Fallback to 0 so invalid entries are intentionally filtered out by timestamp validation below.
+        const luMs = entry.lu != null ? entry.lu * 1000 : 0;
         const timestamp = new Date(
-          // Home Assistant history entries may provide timestamp fields as:
-          // - last_changed
-          // - last_updated
-          // - lu (compact key in minimal responses)
-          // Fallback to 0 so invalid entries are intentionally filtered out by timestamp validation below.
-          entry.last_changed || entry.last_updated || entry.lu || 0,
+          entry.last_changed || entry.last_updated || luMs,
         ).getTime();
         if (!Number.isFinite(value) || !Number.isFinite(timestamp) || timestamp <= 0) {
           return null;
@@ -937,10 +938,12 @@ class FridgeFreezerHealthCardEditor extends HTMLElement {
         gap: 4px;
       }
       ha-textfield,
-      select {
+      select,
+      .number-input {
         width: 100%;
       }
-      select {
+      select,
+      .number-input {
         box-sizing: border-box;
         padding: 10px;
         border: 1px solid var(--divider-color);
@@ -982,12 +985,13 @@ class FridgeFreezerHealthCardEditor extends HTMLElement {
     label.textContent = 'Appliance type';
 
     const select = document.createElement('select');
-    select.value = this._config.appliance_type || 'fridge';
+    const currentAppliance = this._config.appliance_type || 'fridge';
 
     Object.entries(MODE_SPECS).forEach(([value, spec]) => {
       const option = document.createElement('option');
       option.value = value;
       option.textContent = spec.label;
+      option.selected = value === currentAppliance;
       select.appendChild(option);
     });
 
@@ -1009,15 +1013,17 @@ class FridgeFreezerHealthCardEditor extends HTMLElement {
     label.className = 'field-label';
     label.textContent = labelText;
 
-    const input = document.createElement('ha-textfield');
+    const input = document.createElement('input');
     input.type = 'number';
+    input.className = 'number-input';
+    input.min = '0';
     input.step = '1';
     input.max = String(MAX_POWER_THRESHOLD_WATTS);
-    input.value = this._config[key];
+    input.value = String(this._config[key]);
     input.addEventListener('change', (event) => {
       const parsedValue = Number(event.target.value);
       if (!Number.isFinite(parsedValue) || parsedValue < 0 || parsedValue > MAX_POWER_THRESHOLD_WATTS) {
-        event.target.value = this._config[key];
+        event.target.value = String(this._config[key]);
         return;
       }
 
