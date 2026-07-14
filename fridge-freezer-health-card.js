@@ -437,7 +437,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
 
     this._applyModeScale();
     this._renderCompressorTimeline([]);
-    this._renderTempHistory([]);
+    this._renderTempHistory([], []);
   }
 
   _buildStatTile(labelText, initialValue) {
@@ -682,7 +682,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
 
     this._updateCurrentTemperature(temperatureSeries);
     this._updateStats(temperatureSeries, powerSeries, doorSeries);
-    this._renderTempHistory(temperatureSeries);
+    this._renderTempHistory(temperatureSeries, doorSeries);
     this._renderCompressorTimeline(powerSeries);
   }
 
@@ -994,7 +994,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
     return sorted[lower] * (1 - weight) + sorted[upper] * weight;
   }
 
-  _renderTempHistory(temperatureSeries) {
+  _renderTempHistory(temperatureSeries, doorSeries = []) {
     if (!this._elements) {
       return;
     }
@@ -1033,6 +1033,147 @@ class FridgeFreezerHealthCard extends HTMLElement {
 
       svg.appendChild(line);
     }
+
+    this._renderDoorOpenMarkers(svg, temperatureSeries, doorSeries, firstTimestamp, lastTimestamp, span, chartHeight);
+  }
+
+  _renderDoorOpenMarkers(svg, temperatureSeries, doorSeries, firstTimestamp, lastTimestamp, span, chartHeight) {
+    if (!this._config.door_sensor_entity || !Array.isArray(doorSeries) || !doorSeries.length) {
+      return;
+    }
+
+    const openingEvents = this._extractDoorOpeningEvents(doorSeries, firstTimestamp, lastTimestamp);
+    if (!openingEvents.length) {
+      return;
+    }
+
+    const groupedEvents = this._groupOpeningEventsByTenMinutes(openingEvents);
+    groupedEvents.forEach((group) => {
+      const eventTime = group.timestamps[0];
+      const temperature = this._getTemperatureAtTimestamp(temperatureSeries, eventTime);
+      if (!Number.isFinite(temperature)) {
+        return;
+      }
+
+      const x = ((eventTime - firstTimestamp) / span) * 1000;
+      const y = chartHeight - this._normalizeTemp(temperature, this._getModeSpec()) * chartHeight;
+
+      const markerGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      const markerSize = 14;
+      const marker = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      marker.setAttribute('x', String(x - markerSize / 2));
+      marker.setAttribute('y', String(y - markerSize / 2));
+      marker.setAttribute('width', String(markerSize));
+      marker.setAttribute('height', String(markerSize));
+      marker.setAttribute('rx', '1.5');
+      marker.setAttribute('fill', '#fb8c00');
+      marker.setAttribute('stroke', 'rgba(0, 0, 0, 0.4)');
+      marker.setAttribute('stroke-width', '0.8');
+      marker.setAttribute('transform', `rotate(45 ${x} ${y})`);
+
+      markerGroup.appendChild(marker);
+
+      if (group.count > 1) {
+        const countText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        countText.setAttribute('x', String(x));
+        countText.setAttribute('y', String(y + 3));
+        countText.setAttribute('text-anchor', 'middle');
+        countText.setAttribute('font-size', '9');
+        countText.setAttribute('font-weight', '700');
+        countText.setAttribute('fill', '#ffffff');
+        countText.textContent = String(group.count);
+        markerGroup.appendChild(countText);
+      }
+
+      svg.appendChild(markerGroup);
+    });
+  }
+
+  _extractDoorOpeningEvents(doorSeries, startTime, endTime) {
+    const events = [];
+    let previousOpen = false;
+
+    for (let index = 0; index < doorSeries.length; index += 1) {
+      const point = doorSeries[index];
+      if (point.timestamp <= startTime) {
+        previousOpen = this._isDoorOpenState(point.state);
+        continue;
+      }
+
+      if (point.timestamp > endTime) {
+        break;
+      }
+
+      const currentOpen = this._isDoorOpenState(point.state);
+      if (!previousOpen && currentOpen) {
+        events.push(point.timestamp);
+      }
+
+      previousOpen = currentOpen;
+    }
+
+    return events;
+  }
+
+  _groupOpeningEventsByTenMinutes(openingEvents) {
+    if (!openingEvents.length) {
+      return [];
+    }
+
+    const tenMinutesMs = 10 * 60 * 1000;
+    const groups = [];
+    let currentGroup = {
+      start: openingEvents[0],
+      timestamps: [openingEvents[0]],
+      count: 1,
+    };
+
+    for (let index = 1; index < openingEvents.length; index += 1) {
+      const timestamp = openingEvents[index];
+      if (timestamp - currentGroup.start <= tenMinutesMs) {
+        currentGroup.timestamps.push(timestamp);
+        currentGroup.count += 1;
+        continue;
+      }
+
+      groups.push(currentGroup);
+      currentGroup = {
+        start: timestamp,
+        timestamps: [timestamp],
+        count: 1,
+      };
+    }
+
+    groups.push(currentGroup);
+    return groups;
+  }
+
+  _getTemperatureAtTimestamp(temperatureSeries, targetTimestamp) {
+    if (!temperatureSeries.length) {
+      return NaN;
+    }
+
+    if (targetTimestamp <= temperatureSeries[0].timestamp) {
+      return temperatureSeries[0].value;
+    }
+
+    for (let index = 1; index < temperatureSeries.length; index += 1) {
+      const previous = temperatureSeries[index - 1];
+      const current = temperatureSeries[index];
+      if (targetTimestamp > current.timestamp) {
+        continue;
+      }
+
+      const delta = current.timestamp - previous.timestamp;
+      if (delta <= 0) {
+        return current.value;
+      }
+
+      const ratio = (targetTimestamp - previous.timestamp) / delta;
+      return previous.value + (current.value - previous.value) * ratio;
+    }
+
+    return temperatureSeries[temperatureSeries.length - 1].value;
   }
 
   _normalizeTemp(value, spec) {

@@ -8,6 +8,7 @@ A Home Assistant Lovelace custom card that displays fridge/freezer health using:
 - Fridge or freezer temperature scale bar with ideal range highlighting
 - Temperature position marker rendered below the color bar
 - 24-hour moving-average temperature trend line (color-coded for cold/ideal/hot)
+- Door-open events overlaid on the 24-hour trend as orange diamonds
 - 24-hour primary stats (average temp, 5% low, 95% high, current power)
 - Additional analytics tiles (24h energy in kWh, 24h duty cycle, current °C/min rate, and door opens in last hour)
 - Responsive stat tile typography that auto-scales for compact/narrow card widths
@@ -81,6 +82,12 @@ Secondary row:
 - **Duty Cycle (24h)**: Percentage of the last 24 hours where power is above `compressor_running_watts`.
 - **Temp Rate (Now)**: Current temperature change rate in °C/min from the moving-average history window.
 - **Door Opens (1h)**: Number of closed→open transitions in the last hour (requires optional door sensor entity).
+
+Door markers on temperature chart:
+
+- Each door opening event is marked with an orange diamond at the event timestamp.
+- Openings clustered within a 10-minute window are merged into one diamond.
+- For merged clusters of 2 or more openings, the diamond displays the opening count.
 
 Temperature ranges used by the bar and history colors:
 
