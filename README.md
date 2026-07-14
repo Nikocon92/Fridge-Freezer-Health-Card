@@ -6,8 +6,11 @@ A Home Assistant Lovelace custom card that displays fridge/freezer health using:
 
 - 5-minute moving-average interior temperature with trend arrow (↑ / → / ↓)
 - Fridge or freezer temperature scale bar with ideal range highlighting
+- Temperature position marker rendered below the color bar
 - 24-hour moving-average temperature trend line (color-coded for cold/ideal/hot)
-- 24-hour stats (average, 5% low, 95% high, and current power)
+- 24-hour primary stats (average temp, 5% low, 95% high, current power)
+- Additional analytics tiles (24h energy in kWh, 24h duty cycle, current °C/min rate, and door opens in last hour)
+- Responsive stat tile typography that auto-scales for compact/narrow card widths
 - 24-hour compressor activity timeline (off/running/defrost)
 
 Each entity is selected through Home Assistant's built-in entity picker in the card editor.
@@ -39,6 +42,7 @@ In the card editor, choose:
 - Ambient Temperature entity (°C)
 - Interior Temperature entity (°C)
 - Power Consumption entity (W)
+- Door Sensor entity (optional)
 - Card title (optional)
 - Appliance type (`Fridge` or `Freezer`)
 - Compressor running threshold (W)
@@ -50,6 +54,33 @@ Additional behavior:
 - `max_change_rate_celsius_per_minute` defaults to `0.5`.
 - If the absolute 5-minute average rate exceeds this value, card health is flagged as **Alert**.
 - Set this value to `0` to disable rate-based alerting.
+- If a door sensor entity is set, the **Door Opens (1h)** tile counts closed→open transitions in the last hour.
+
+Door sensor states treated as **open**:
+
+- `on`
+- `open`
+- `opening`
+- `true`
+- `1`
+
+All other states are treated as not open.
+
+## Analytics Tiles
+
+Primary row:
+
+- **Avg Temp (24h)**: Mean of the 5-minute moving-average interior temperature values in the last 24 hours.
+- **5% Low (24h)**: 5th percentile of the 24-hour moving-average temperature values.
+- **95% High (24h)**: 95th percentile of the 24-hour moving-average temperature values.
+- **Power Now**: Current power entity value.
+
+Secondary row:
+
+- **Energy (24h)**: Integrated energy from power history over the last 24 hours, shown in kWh.
+- **Duty Cycle (24h)**: Percentage of the last 24 hours where power is above `compressor_running_watts`.
+- **Temp Rate (Now)**: Current temperature change rate in °C/min from the moving-average history window.
+- **Door Opens (1h)**: Number of closed→open transitions in the last hour (requires optional door sensor entity).
 
 Temperature ranges used by the bar and history colors:
 

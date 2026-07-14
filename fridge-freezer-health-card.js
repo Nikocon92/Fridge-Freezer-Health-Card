@@ -35,6 +35,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
       ambient_temperature_entity: '',
       interior_temperature_entity: '',
       power_consumption_entity: '',
+      door_sensor_entity: '',
       card_title: '',
       appliance_type: 'fridge',
       compressor_running_watts: DEFAULT_RUNNING_WATTS,
@@ -175,6 +176,22 @@ class FridgeFreezerHealthCard extends HTMLElement {
     const separator3 = document.createElement('div');
     separator3.className = 'section-separator';
 
+    const derivedStatsGrid = document.createElement('div');
+    derivedStatsGrid.className = 'stats-grid secondary-stats-grid';
+
+    const energy24h = this._buildStatTile('Energy (24h)', '—');
+    const dutyCycle24h = this._buildStatTile('Duty Cycle (24h)', '—');
+    const rateNow = this._buildStatTile('Temp Rate (Now)', '—');
+    const doorOpenings = this._buildStatTile('Door Opens (1h)', '—');
+
+    derivedStatsGrid.appendChild(energy24h.tile);
+    derivedStatsGrid.appendChild(dutyCycle24h.tile);
+    derivedStatsGrid.appendChild(rateNow.tile);
+    derivedStatsGrid.appendChild(doorOpenings.tile);
+
+    const separator4 = document.createElement('div');
+    separator4.className = 'section-separator';
+
     const compressorSection = document.createElement('div');
     compressorSection.className = 'compressor-section';
 
@@ -202,6 +219,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
       .health-layout {
         display: grid;
         gap: 12px;
+        container-type: inline-size;
       }
       .summary-header {
         display: grid;
@@ -257,6 +275,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
       .temperature-bar-section {
         display: grid;
         gap: 6px;
+        padding-bottom: 22px;
       }
       .temperature-scale-labels {
         display: flex;
@@ -268,12 +287,13 @@ class FridgeFreezerHealthCard extends HTMLElement {
         position: relative;
         height: 16px;
         border-radius: 999px;
+        overflow: visible;
       }
       .temperature-arrow {
         position: absolute;
-        top: -26px;
+        top: 18px;
         transform: translateX(-50%);
-        font-size: 2rem;
+        font-size: 1.5rem;
         line-height: 1;
         color: #f5f5f5;
       }
@@ -296,21 +316,29 @@ class FridgeFreezerHealthCard extends HTMLElement {
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 8px;
       }
+      .secondary-stats-grid {
+        margin-top: -2px;
+      }
       .stat-tile {
         border-right: 1px solid rgba(82, 129, 173, 0.35);
         padding: 8px;
+        min-width: 0;
       }
       .stat-tile:last-child {
         border-right: 0;
       }
       .stat-label {
-        font-size: 0.75rem;
+        font-size: clamp(0.68rem, 2.6cqw, 0.82rem);
         color: #98b2ce;
       }
       .stat-value {
         margin-top: 4px;
-        font-size: 1.9rem;
+        font-size: clamp(1.2rem, 7.8cqw, 1.95rem);
         font-weight: 600;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .compressor-section {
         display: grid;
@@ -364,15 +392,8 @@ class FridgeFreezerHealthCard extends HTMLElement {
         .title-value {
           font-size: 1.25rem;
         }
-        .stats-grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-        .stat-tile {
-          border-right: 0;
-          border-bottom: 1px solid rgba(82, 129, 173, 0.35);
-        }
-        .stat-tile:nth-last-child(-n + 2) {
-          border-bottom: 0;
+        .stat-value {
+          font-size: clamp(1.05rem, 7.4cqw, 1.7rem);
         }
       }
     `;
@@ -384,6 +405,8 @@ class FridgeFreezerHealthCard extends HTMLElement {
     root.appendChild(separator2);
     root.appendChild(statsGrid);
     root.appendChild(separator3);
+    root.appendChild(derivedStatsGrid);
+    root.appendChild(separator4);
     root.appendChild(compressorSection);
 
     this._content.appendChild(style);
@@ -405,6 +428,10 @@ class FridgeFreezerHealthCard extends HTMLElement {
       lowTempValue: lowTemp.value,
       highTempValue: highTemp.value,
       powerNowValue: powerNow.value,
+      energy24hValue: energy24h.value,
+      dutyCycle24hValue: dutyCycle24h.value,
+      rateNowValue: rateNow.value,
+      doorOpeningsValue: doorOpenings.value,
       compressorTimeline,
     };
 
@@ -458,6 +485,8 @@ class FridgeFreezerHealthCard extends HTMLElement {
       #43a047 ${goodEndPct}%,
       #ef9a9a ${goodEndPct}%,
       #e53935 100%)`;
+
+    this._elements.tempArrow.textContent = '▲';
   }
 
   _setArrowPosition(value) {
@@ -505,9 +534,13 @@ class FridgeFreezerHealthCard extends HTMLElement {
     }
 
     const powerEntity = this._config.power_consumption_entity;
+    const doorEntity = this._config.door_sensor_entity;
     const entityIds = [interiorEntity];
     if (powerEntity) {
       entityIds.push(powerEntity);
+    }
+    if (doorEntity) {
+      entityIds.push(doorEntity);
     }
 
     const startTime = new Date(now - HISTORY_LOOKBACK_HOURS * 60 * 60 * 1000).toISOString();
@@ -534,6 +567,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
       this._applyHistoryData({
         tempMovingAverage: [],
         powerPoints: [],
+        doorPoints: [],
       });
     } finally {
       this._historyRequest = null;
@@ -554,11 +588,17 @@ class FridgeFreezerHealthCard extends HTMLElement {
     }
 
     const interiorPoints = this._normalizeHistoryPoints(historyByEntity[entityIds[0]] || []);
-    const powerPoints = entityIds[1] ? this._normalizeHistoryPoints(historyByEntity[entityIds[1]] || []) : [];
+    const powerPoints = this._config.power_consumption_entity
+      ? this._normalizeHistoryPoints(historyByEntity[this._config.power_consumption_entity] || [])
+      : [];
+    const doorPoints = this._config.door_sensor_entity
+      ? this._normalizeStateHistoryPoints(historyByEntity[this._config.door_sensor_entity] || [])
+      : [];
 
     return {
       tempMovingAverage: this._calculateMovingAverage(interiorPoints),
       powerPoints,
+      doorPoints,
     };
   }
 
@@ -582,6 +622,29 @@ class FridgeFreezerHealthCard extends HTMLElement {
         return {
           timestamp,
           value,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.timestamp - b.timestamp);
+  }
+
+  _normalizeStateHistoryPoints(states) {
+    return states
+      .map((entry) => {
+        const rawState = entry.state !== undefined ? entry.state : entry.s;
+        const state = rawState == null ? '' : String(rawState).toLowerCase();
+        const luMs = entry.lu != null ? entry.lu * 1000 : 0;
+        const timestamp = new Date(
+          entry.last_changed || entry.last_updated || luMs,
+        ).getTime();
+
+        if (!state || !Number.isFinite(timestamp) || timestamp <= 0) {
+          return null;
+        }
+
+        return {
+          timestamp,
+          state,
         };
       })
       .filter(Boolean)
@@ -615,9 +678,10 @@ class FridgeFreezerHealthCard extends HTMLElement {
   _applyHistoryData(data) {
     const temperatureSeries = data.tempMovingAverage || [];
     const powerSeries = data.powerPoints || [];
+    const doorSeries = data.doorPoints || [];
 
     this._updateCurrentTemperature(temperatureSeries);
-    this._updateStats(temperatureSeries);
+    this._updateStats(temperatureSeries, powerSeries, doorSeries);
     this._renderTempHistory(temperatureSeries);
     this._renderCompressorTimeline(powerSeries);
   }
@@ -728,7 +792,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
     return TREND_STABLE_RATE_CELSIUS_PER_MINUTE;
   }
 
-  _updateStats(temperatureSeries) {
+  _updateStats(temperatureSeries, powerSeries, doorSeries) {
     if (!this._elements) {
       return;
     }
@@ -737,14 +801,179 @@ class FridgeFreezerHealthCard extends HTMLElement {
       this._elements.avgTempValue.textContent = '—';
       this._elements.lowTempValue.textContent = '—';
       this._elements.highTempValue.textContent = '—';
+    } else {
+      const values = temperatureSeries.map((point) => point.value);
+      const average = values.reduce((total, value) => total + value, 0) / values.length;
+      this._elements.avgTempValue.textContent = `${average.toFixed(1)}°C`;
+      this._elements.lowTempValue.textContent = `${this._percentile(values, 0.05).toFixed(1)}°C`;
+      this._elements.highTempValue.textContent = `${this._percentile(values, 0.95).toFixed(1)}°C`;
+    }
+
+    const rate = this._getTemperatureRateCelsiusPerMinute(temperatureSeries);
+    if (Number.isFinite(rate)) {
+      this._elements.rateNowValue.textContent = `${rate.toFixed(2)}°C/min`;
+    } else {
+      this._elements.rateNowValue.textContent = '—';
+    }
+
+    if (!powerSeries.length) {
+      this._elements.energy24hValue.textContent = '—';
+      this._elements.dutyCycle24hValue.textContent = '—';
+    } else {
+      const now = Date.now();
+      const startTime = now - HISTORY_LOOKBACK_HOURS * 60 * 60 * 1000;
+      const energyKWh = this._calculateEnergyKwh(powerSeries, startTime, now);
+      const dutyCyclePct = this._calculateDutyCyclePercent(powerSeries, startTime, now);
+
+      this._elements.energy24hValue.textContent = Number.isFinite(energyKWh)
+        ? `${energyKWh.toFixed(2)} kWh`
+        : '—';
+      this._elements.dutyCycle24hValue.textContent = Number.isFinite(dutyCyclePct)
+        ? `${dutyCyclePct.toFixed(1)}%`
+        : '—';
+    }
+
+    if (!this._config.door_sensor_entity) {
+      this._elements.doorOpeningsValue.textContent = '—';
       return;
     }
 
-    const values = temperatureSeries.map((point) => point.value);
-    const average = values.reduce((total, value) => total + value, 0) / values.length;
-    this._elements.avgTempValue.textContent = `${average.toFixed(1)}°C`;
-    this._elements.lowTempValue.textContent = `${this._percentile(values, 0.05).toFixed(1)}°C`;
-    this._elements.highTempValue.textContent = `${this._percentile(values, 0.95).toFixed(1)}°C`;
+    const now = Date.now();
+    const oneHourAgo = now - 60 * 60 * 1000;
+    const openings = this._countDoorOpenings(doorSeries, oneHourAgo, now);
+    this._elements.doorOpeningsValue.textContent = Number.isFinite(openings)
+      ? String(openings)
+      : '—';
+  }
+
+  _countDoorOpenings(doorSeries, startTime, endTime) {
+    if (!Array.isArray(doorSeries) || endTime <= startTime) {
+      return NaN;
+    }
+
+    if (!doorSeries.length) {
+      return 0;
+    }
+
+    let previousOpen = false;
+    for (let index = 0; index < doorSeries.length; index += 1) {
+      if (doorSeries[index].timestamp <= startTime) {
+        previousOpen = this._isDoorOpenState(doorSeries[index].state);
+      } else {
+        break;
+      }
+    }
+
+    let openings = 0;
+    for (let index = 0; index < doorSeries.length; index += 1) {
+      const point = doorSeries[index];
+      if (point.timestamp < startTime || point.timestamp > endTime) {
+        continue;
+      }
+
+      const currentOpen = this._isDoorOpenState(point.state);
+      if (!previousOpen && currentOpen) {
+        openings += 1;
+      }
+
+      previousOpen = currentOpen;
+    }
+
+    return openings;
+  }
+
+  _isDoorOpenState(state) {
+    return state === 'on' || state === 'open' || state === 'opening' || state === 'true' || state === '1';
+  }
+
+  _calculateEnergyKwh(powerSeries, startTime, endTime) {
+    if (!powerSeries.length || endTime <= startTime) {
+      return NaN;
+    }
+
+    let index = 0;
+    let currentValue = 0;
+    while (index < powerSeries.length && powerSeries[index].timestamp <= startTime) {
+      currentValue = powerSeries[index].value;
+      index += 1;
+    }
+
+    if (!Number.isFinite(currentValue)) {
+      const firstFinite = powerSeries.find((point) => Number.isFinite(point.value));
+      currentValue = firstFinite ? firstFinite.value : 0;
+    }
+
+    let previousTime = startTime;
+    let wattHours = 0;
+    while (index < powerSeries.length && powerSeries[index].timestamp <= endTime) {
+      const point = powerSeries[index];
+      const pointTime = point.timestamp;
+      const durationHours = (pointTime - previousTime) / (60 * 60 * 1000);
+      if (durationHours > 0 && Number.isFinite(currentValue)) {
+        wattHours += currentValue * durationHours;
+      }
+
+      currentValue = point.value;
+      previousTime = pointTime;
+      index += 1;
+    }
+
+    const tailHours = (endTime - previousTime) / (60 * 60 * 1000);
+    if (tailHours > 0 && Number.isFinite(currentValue)) {
+      wattHours += currentValue * tailHours;
+    }
+
+    return wattHours / 1000;
+  }
+
+  _calculateDutyCyclePercent(powerSeries, startTime, endTime) {
+    if (!powerSeries.length || endTime <= startTime) {
+      return NaN;
+    }
+
+    const runningConfig = Number(this._config.compressor_running_watts);
+    const runningThreshold = Number.isFinite(runningConfig)
+      ? runningConfig
+      : DEFAULT_RUNNING_WATTS;
+
+    let index = 0;
+    let currentValue = 0;
+    while (index < powerSeries.length && powerSeries[index].timestamp <= startTime) {
+      currentValue = powerSeries[index].value;
+      index += 1;
+    }
+
+    if (!Number.isFinite(currentValue)) {
+      const firstFinite = powerSeries.find((point) => Number.isFinite(point.value));
+      currentValue = firstFinite ? firstFinite.value : 0;
+    }
+
+    let previousTime = startTime;
+    let runningMs = 0;
+    while (index < powerSeries.length && powerSeries[index].timestamp <= endTime) {
+      const point = powerSeries[index];
+      const pointTime = point.timestamp;
+      const durationMs = pointTime - previousTime;
+      if (durationMs > 0 && currentValue >= runningThreshold) {
+        runningMs += durationMs;
+      }
+
+      currentValue = point.value;
+      previousTime = pointTime;
+      index += 1;
+    }
+
+    const tailMs = endTime - previousTime;
+    if (tailMs > 0 && currentValue >= runningThreshold) {
+      runningMs += tailMs;
+    }
+
+    const totalMs = endTime - startTime;
+    if (totalMs <= 0) {
+      return NaN;
+    }
+
+    return (runningMs / totalMs) * 100;
   }
 
   _percentile(values, percentile) {
@@ -981,6 +1210,9 @@ class FridgeFreezerHealthCardEditor extends HTMLElement {
     root.appendChild(this._buildEntityField('Ambient Temperature (°C)', 'ambient_temperature_entity'));
     root.appendChild(this._buildEntityField('Interior Temperature (°C)', 'interior_temperature_entity'));
     root.appendChild(this._buildEntityField('Power Consumption (W)', 'power_consumption_entity'));
+    root.appendChild(
+      this._buildEntityField('Door Sensor (optional)', 'door_sensor_entity', ['binary_sensor', 'sensor']),
+    );
     root.appendChild(this._buildTextField('Card title (optional)', 'card_title'));
     root.appendChild(this._buildModeField());
     root.appendChild(this._buildNumberField('Compressor running threshold (W)', 'compressor_running_watts'));
@@ -1090,7 +1322,7 @@ class FridgeFreezerHealthCardEditor extends HTMLElement {
     return wrapper;
   }
 
-  _buildEntityField(labelText, key) {
+  _buildEntityField(labelText, key, includeDomains = ['sensor']) {
     const wrapper = document.createElement('div');
     wrapper.className = 'input-group';
 
@@ -1102,7 +1334,7 @@ class FridgeFreezerHealthCardEditor extends HTMLElement {
     const picker = document.createElement('ha-entity-picker');
     picker.hass = this._hass;
     picker.value = this._config[key] || '';
-    picker.includeDomains = ['sensor'];
+    picker.includeDomains = includeDomains;
     picker.allowCustomEntity = false;
     picker.addEventListener('value-changed', (event) => {
       this._valueChanged(key, event.detail.value);
