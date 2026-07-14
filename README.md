@@ -43,6 +43,13 @@ In the card editor, choose:
 - Appliance type (`Fridge` or `Freezer`)
 - Compressor running threshold (W)
 - Defrost threshold (W)
+- Maximum change rate (°C/min)
+
+Additional behavior:
+
+- `max_change_rate_celsius_per_minute` defaults to `0.5`.
+- If the absolute 5-minute average rate exceeds this value, card health is flagged as **Alert**.
+- Set this value to `0` to disable rate-based alerting.
 
 Temperature ranges used by the bar and history colors:
 

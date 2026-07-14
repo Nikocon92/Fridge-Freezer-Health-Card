@@ -1,6 +1,6 @@
 const HISTORY_LOOKBACK_HOURS = 24;
 const MOVING_AVERAGE_WINDOW_MINUTES = 5;
-// Requested behavior: stable trend when change is up to 0.5°C per minute.
+// Default maximum change rate threshold in °C/min.
 const TREND_STABLE_RATE_CELSIUS_PER_MINUTE = 0.5;
 const HEALTH_WARNING_BAND_CELSIUS = 2;
 const HISTORY_REFRESH_MS = 60 * 1000;
@@ -39,6 +39,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
       appliance_type: 'fridge',
       compressor_running_watts: DEFAULT_RUNNING_WATTS,
       defrost_watts: DEFAULT_DEFROST_WATTS,
+      max_change_rate_celsius_per_minute: TREND_STABLE_RATE_CELSIUS_PER_MINUTE,
     };
   }
 
@@ -634,26 +635,32 @@ class FridgeFreezerHealthCard extends HTMLElement {
     }
 
     const latest = temperatureSeries[temperatureSeries.length - 1];
-    const trend = this._getTrendArrow(temperatureSeries);
+    const rate = this._getTemperatureRateCelsiusPerMinute(temperatureSeries);
+    const trend = this._getTrendArrow(rate);
 
     this._elements.currentTempValue.textContent = `${latest.value.toFixed(1)}°C ${trend}`;
     this._setArrowPosition(latest.value);
-    this._setHealthStatus(latest.value);
+    this._setHealthStatus(latest.value, rate);
   }
 
-  _setHealthStatus(temperatureValue) {
+  _setHealthStatus(temperatureValue, rate) {
     if (!this._elements) {
       return;
     }
 
-    const status = this._classifyHealth(temperatureValue);
+    const status = this._classifyHealth(temperatureValue, rate);
     this._elements.healthValue.className = `health-value ${status.level}`;
     this._elements.healthValue.textContent = `● ${status.text}`;
   }
 
-  _classifyHealth(value) {
+  _classifyHealth(value, rate) {
     if (!Number.isFinite(value)) {
       return { level: '', text: 'Unavailable' };
+    }
+
+    const maxRate = this._getMaxChangeRateThreshold();
+    if (maxRate > 0 && Number.isFinite(rate) && Math.abs(rate) > maxRate) {
+      return { level: 'alert', text: 'Rapid change' };
     }
 
     const spec = this._getModeSpec();
@@ -671,9 +678,26 @@ class FridgeFreezerHealthCard extends HTMLElement {
     return { level: 'alert', text: 'Alert' };
   }
 
-  _getTrendArrow(series) {
-    if (series.length < 2) {
+  _getTrendArrow(rate) {
+    if (!Number.isFinite(rate)) {
       return '→';
+    }
+    const threshold = this._getMaxChangeRateThreshold();
+
+    if (rate > threshold) {
+      return '↑';
+    }
+
+    if (rate < -threshold) {
+      return '↓';
+    }
+
+    return '→';
+  }
+
+  _getTemperatureRateCelsiusPerMinute(series) {
+    if (series.length < 2) {
+      return null;
     }
 
     const latest = series[series.length - 1];
@@ -689,19 +713,19 @@ class FridgeFreezerHealthCard extends HTMLElement {
 
     const minutes = (latest.timestamp - reference.timestamp) / (60 * 1000);
     if (minutes < 0.25) {
-      return '→';
-    }
-    const rate = (latest.value - reference.value) / minutes;
-
-    if (rate > TREND_STABLE_RATE_CELSIUS_PER_MINUTE) {
-      return '↑';
+      return null;
     }
 
-    if (rate < -TREND_STABLE_RATE_CELSIUS_PER_MINUTE) {
-      return '↓';
+    return (latest.value - reference.value) / minutes;
+  }
+
+  _getMaxChangeRateThreshold() {
+    const configuredThreshold = Number(this._config.max_change_rate_celsius_per_minute);
+    if (Number.isFinite(configuredThreshold) && configuredThreshold >= 0) {
+      return configuredThreshold;
     }
 
-    return '→';
+    return TREND_STABLE_RATE_CELSIUS_PER_MINUTE;
   }
 
   _updateStats(temperatureSeries) {
@@ -961,6 +985,12 @@ class FridgeFreezerHealthCardEditor extends HTMLElement {
     root.appendChild(this._buildModeField());
     root.appendChild(this._buildNumberField('Compressor running threshold (W)', 'compressor_running_watts'));
     root.appendChild(this._buildNumberField('Defrost threshold (W)', 'defrost_watts'));
+    root.appendChild(
+      this._buildNumberField('Maximum change rate (°C/min)', 'max_change_rate_celsius_per_minute', {
+        min: 0,
+        step: 0.1,
+      }),
+    );
 
     root.addEventListener(
       'pointerdown',
@@ -1005,7 +1035,7 @@ class FridgeFreezerHealthCardEditor extends HTMLElement {
     return wrapper;
   }
 
-  _buildNumberField(labelText, key) {
+  _buildNumberField(labelText, key, options = {}) {
     const wrapper = document.createElement('div');
     wrapper.className = 'input-group';
 
@@ -1016,13 +1046,19 @@ class FridgeFreezerHealthCardEditor extends HTMLElement {
     const input = document.createElement('input');
     input.type = 'number';
     input.className = 'number-input';
-    input.min = '0';
-    input.step = '1';
-    input.max = String(MAX_POWER_THRESHOLD_WATTS);
+    const min = Number.isFinite(options.min) ? options.min : 0;
+    const max = Number.isFinite(options.max) ? options.max : MAX_POWER_THRESHOLD_WATTS;
+    const step = Number.isFinite(options.step) ? options.step : 1;
+
+    input.min = String(min);
+    input.step = String(step);
+    if (Number.isFinite(max)) {
+      input.max = String(max);
+    }
     input.value = String(this._config[key]);
     input.addEventListener('change', (event) => {
       const parsedValue = Number(event.target.value);
-      if (!Number.isFinite(parsedValue) || parsedValue < 0 || parsedValue > MAX_POWER_THRESHOLD_WATTS) {
+      if (!Number.isFinite(parsedValue) || parsedValue < min || parsedValue > max) {
         event.target.value = String(this._config[key]);
         return;
       }
