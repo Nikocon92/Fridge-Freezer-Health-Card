@@ -54,11 +54,8 @@ class FridgeFreezerHealthCard extends HTMLElement {
       this._card = document.createElement('ha-card');
       this._content = document.createElement('div');
       this._content.className = 'card-content';
-      this._card.style.background =
-        'radial-gradient(circle at top, rgba(12, 35, 64, 0.95) 0%, rgba(5, 19, 36, 0.95) 55%, rgba(3, 12, 24, 0.98) 100%)';
-      this._card.style.border = '1px solid rgba(82, 129, 173, 0.35)';
-      this._card.style.borderRadius = '20px';
-      this._card.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.3)';
+      this._card.style.background = 'var(--ha-card-background, var(--card-background-color))';
+      this._card.style.color = 'var(--primary-text-color)';
       this._card.appendChild(this._content);
       this.appendChild(this._card);
     }
@@ -217,9 +214,25 @@ class FridgeFreezerHealthCard extends HTMLElement {
     const style = document.createElement('style');
     style.textContent = `
       .health-layout {
+        --ffhc-color-text-primary: var(--primary-text-color);
+        --ffhc-color-text-secondary: var(--secondary-text-color);
+        --ffhc-color-divider: var(--divider-color, rgba(127, 127, 127, 0.35));
+        --ffhc-color-surface: color-mix(in srgb, var(--ha-card-background, var(--card-background-color)) 85%, var(--primary-text-color) 15%);
+        --ffhc-color-bar-cold: var(--info-color, #1e88e5);
+        --ffhc-color-bar-cool: color-mix(in srgb, var(--info-color, #1e88e5) 60%, var(--primary-text-color) 40%);
+        --ffhc-color-bar-good: var(--success-color, #43a047);
+        --ffhc-color-bar-warm: color-mix(in srgb, var(--warning-color, #fb8c00) 40%, var(--error-color, #e53935) 60%);
+        --ffhc-color-bar-hot: var(--error-color, #e53935);
+        --ffhc-color-health-healthy: var(--success-color, #43a047);
+        --ffhc-color-health-warning: var(--warning-color, #fb8c00);
+        --ffhc-color-health-alert: var(--error-color, #e53935);
+        --ffhc-color-timeline-off: color-mix(in srgb, var(--disabled-text-color, #9e9e9e) 65%, var(--ha-card-background, var(--card-background-color)) 35%);
+        --ffhc-color-marker-stroke: color-mix(in srgb, var(--primary-text-color) 35%, transparent);
+        --ffhc-color-marker-count: var(--text-primary-color, #fff);
         display: grid;
         gap: 12px;
         container-type: inline-size;
+        color: var(--ffhc-color-text-primary);
       }
       .summary-header {
         display: grid;
@@ -246,20 +259,20 @@ class FridgeFreezerHealthCard extends HTMLElement {
       }
       .summary-label {
         font-size: 0.9rem;
-        color: #98b2ce;
+        color: var(--ffhc-color-text-secondary);
       }
       .health-value {
         font-size: 1rem;
         font-weight: 600;
       }
       .health-value.healthy {
-        color: #66de6f;
+        color: var(--ffhc-color-health-healthy);
       }
       .health-value.warning {
-        color: #ffcc80;
+        color: var(--ffhc-color-health-warning);
       }
       .health-value.alert {
-        color: #ef5350;
+        color: var(--ffhc-color-health-alert);
       }
       .summary-value {
         font-size: 4.2rem;
@@ -269,7 +282,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
       }
       .summary-sub-value {
         font-size: 0.9rem;
-        color: #98b2ce;
+        color: var(--ffhc-color-text-secondary);
         text-align: center;
       }
       .temperature-bar-section {
@@ -281,7 +294,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
         display: flex;
         justify-content: space-between;
         font-size: 0.82rem;
-        color: #98b2ce;
+        color: var(--ffhc-color-text-secondary);
       }
       .temperature-bar {
         position: relative;
@@ -295,21 +308,21 @@ class FridgeFreezerHealthCard extends HTMLElement {
         transform: translateX(-50%);
         font-size: 1.5rem;
         line-height: 1;
-        color: #f5f5f5;
+        color: var(--ffhc-color-text-primary);
       }
       .section-separator {
-        border-top: 1px solid rgba(82, 129, 173, 0.35);
+        border-top: 1px solid var(--ffhc-color-divider);
         margin: 2px 0;
       }
       .section-title {
         font-size: 0.9rem;
-        color: #98b2ce;
+        color: var(--ffhc-color-text-secondary);
       }
       .temp-history-chart {
         width: 100%;
         height: 110px;
         border-radius: 8px;
-        background: rgba(11, 36, 64, 0.45);
+        background: var(--ffhc-color-surface);
       }
       .stats-grid {
         display: grid;
@@ -320,7 +333,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
         margin-top: -2px;
       }
       .stat-tile {
-        border-right: 1px solid rgba(82, 129, 173, 0.35);
+        border-right: 1px solid var(--ffhc-color-divider);
         padding: 8px;
         min-width: 0;
       }
@@ -329,7 +342,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
       }
       .stat-label {
         font-size: clamp(0.68rem, 2.6cqw, 0.82rem);
-        color: #98b2ce;
+        color: var(--ffhc-color-text-secondary);
       }
       .stat-value {
         margin-top: 4px;
@@ -353,26 +366,26 @@ class FridgeFreezerHealthCard extends HTMLElement {
       .timeline-segment {
         border-radius: 1px;
         min-height: 20px;
-        background: rgba(127, 127, 127, 0.2);
+        background: var(--ffhc-color-timeline-off);
       }
       .timeline-segment.off,
       .legend-swatch.off {
-        background: #607d8b;
+        background: var(--ffhc-color-timeline-off);
       }
       .timeline-segment.running,
       .legend-swatch.running {
-        background: #43a047;
+        background: var(--ffhc-color-health-healthy);
       }
       .timeline-segment.defrost,
       .legend-swatch.defrost {
-        background: #fb8c00;
+        background: var(--ffhc-color-health-warning);
       }
       .timeline-legend {
         display: flex;
         flex-wrap: wrap;
         gap: 12px;
         font-size: 0.8rem;
-        color: #98b2ce;
+        color: var(--ffhc-color-text-secondary);
       }
       .timeline-legend span {
         display: inline-flex;
@@ -479,12 +492,12 @@ class FridgeFreezerHealthCard extends HTMLElement {
     this._elements.titleValue.textContent = this._config.card_title || `${spec.label} Health`;
 
     this._elements.tempBar.style.background = `linear-gradient(to right,
-      #1e88e5 0%,
-      #64b5f6 ${goodStartPct}%,
-      #43a047 ${goodStartPct}%,
-      #43a047 ${goodEndPct}%,
-      #ef9a9a ${goodEndPct}%,
-      #e53935 100%)`;
+      var(--ffhc-color-bar-cold) 0%,
+      var(--ffhc-color-bar-cool) ${goodStartPct}%,
+      var(--ffhc-color-bar-good) ${goodStartPct}%,
+      var(--ffhc-color-bar-good) ${goodEndPct}%,
+      var(--ffhc-color-bar-warm) ${goodEndPct}%,
+      var(--ffhc-color-bar-hot) 100%)`;
 
     this._elements.tempArrow.textContent = '▲';
   }
@@ -1066,8 +1079,8 @@ class FridgeFreezerHealthCard extends HTMLElement {
       marker.setAttribute('width', String(markerSize));
       marker.setAttribute('height', String(markerSize));
       marker.setAttribute('rx', '1.5');
-      marker.setAttribute('fill', '#fb8c00');
-      marker.setAttribute('stroke', 'rgba(0, 0, 0, 0.4)');
+      marker.setAttribute('fill', 'var(--ffhc-color-health-warning)');
+      marker.setAttribute('stroke', 'var(--ffhc-color-marker-stroke)');
       marker.setAttribute('stroke-width', '0.8');
       marker.setAttribute('transform', `rotate(45 ${x} ${y})`);
 
@@ -1080,7 +1093,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
         countText.setAttribute('text-anchor', 'middle');
         countText.setAttribute('font-size', '9');
         countText.setAttribute('font-weight', '700');
-        countText.setAttribute('fill', '#ffffff');
+        countText.setAttribute('fill', 'var(--ffhc-color-marker-count)');
         countText.textContent = String(group.count);
         markerGroup.appendChild(countText);
       }
@@ -1184,14 +1197,14 @@ class FridgeFreezerHealthCard extends HTMLElement {
   _temperatureColor(value) {
     const spec = this._getModeSpec();
     if (value < spec.goodMin) {
-      return '#1e88e5';
+      return 'var(--ffhc-color-bar-cold)';
     }
 
     if (value > spec.goodMax) {
-      return '#e53935';
+      return 'var(--ffhc-color-bar-hot)';
     }
 
-    return '#43a047';
+    return 'var(--ffhc-color-bar-good)';
   }
 
   _renderCompressorTimeline(powerSeries) {
