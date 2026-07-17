@@ -1072,6 +1072,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
 
       const markerGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       const markerSize = 28;
+      const markerTextSize = markerSize * 0.5;
       const marker = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       marker.setAttribute('x', String(x - markerSize / 2));
       marker.setAttribute('y', String(y - markerSize / 2));
@@ -1090,7 +1091,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
         countText.setAttribute('x', String(x));
         countText.setAttribute('y', String(y + 3));
         countText.setAttribute('text-anchor', 'middle');
-        countText.setAttribute('font-size', '9');
+        countText.setAttribute('font-size', String(markerTextSize));
         countText.setAttribute('font-weight', '700');
         countText.setAttribute('fill', 'var(--ffhc-color-marker-count, #000)');
         countText.textContent = String(group.count);
