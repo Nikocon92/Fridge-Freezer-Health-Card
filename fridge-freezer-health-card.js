@@ -341,12 +341,12 @@ class FridgeFreezerHealthCard extends HTMLElement {
         border-right: 0;
       }
       .stat-label {
-        font-size: clamp(0.68rem, 2.6cqw, 0.82rem);
+        font-size: clamp(0.62rem, 2.3cqw, 0.76rem);
         color: var(--ffhc-color-text-secondary);
       }
       .stat-value {
         margin-top: 4px;
-        font-size: clamp(1.2rem, 7.8cqw, 1.95rem);
+        font-size: clamp(1rem, 6.2cqw, 1.6rem);
         font-weight: 600;
         line-height: 1.2;
         white-space: nowrap;
@@ -1072,7 +1072,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
       const y = chartHeight - this._normalizeTemp(temperature, this._getModeSpec()) * chartHeight;
 
       const markerGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      const markerSize = 14;
+      const markerSize = 28;
       const marker = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       marker.setAttribute('x', String(x - markerSize / 2));
       marker.setAttribute('y', String(y - markerSize / 2));
@@ -1093,7 +1093,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
         countText.setAttribute('text-anchor', 'middle');
         countText.setAttribute('font-size', '9');
         countText.setAttribute('font-weight', '700');
-        countText.setAttribute('fill', 'var(--ffhc-color-marker-count)');
+        countText.setAttribute('fill', '#000000');
         countText.textContent = String(group.count);
         markerGroup.appendChild(countText);
       }
