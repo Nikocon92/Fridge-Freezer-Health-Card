@@ -228,7 +228,6 @@ class FridgeFreezerHealthCard extends HTMLElement {
         --ffhc-color-health-alert: var(--error-color, #e53935);
         --ffhc-color-timeline-off: color-mix(in srgb, var(--disabled-text-color, #9e9e9e) 65%, var(--ha-card-background, var(--card-background-color)) 35%);
         --ffhc-color-marker-stroke: color-mix(in srgb, var(--primary-text-color) 35%, transparent);
-        --ffhc-color-marker-count: #000;
         display: grid;
         gap: 12px;
         container-type: inline-size;
@@ -1093,7 +1092,7 @@ class FridgeFreezerHealthCard extends HTMLElement {
         countText.setAttribute('text-anchor', 'middle');
         countText.setAttribute('font-size', '9');
         countText.setAttribute('font-weight', '700');
-        countText.setAttribute('fill', 'var(--ffhc-color-marker-count)');
+        countText.setAttribute('fill', 'var(--ffhc-color-marker-count, #000)');
         countText.textContent = String(group.count);
         markerGroup.appendChild(countText);
       }
