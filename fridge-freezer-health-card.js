@@ -1072,7 +1072,6 @@ class FridgeFreezerHealthCard extends HTMLElement {
 
       const markerGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       const markerSize = 28;
-      const markerTextSize = markerSize * 0.5;
       const marker = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       marker.setAttribute('x', String(x - markerSize / 2));
       marker.setAttribute('y', String(y - markerSize / 2));
@@ -1087,19 +1086,35 @@ class FridgeFreezerHealthCard extends HTMLElement {
       markerGroup.appendChild(marker);
 
       if (group.count > 1) {
+        const countLabel = String(group.count);
+        const markerTextSize = this._getDoorMarkerTextSize(countLabel, markerSize);
+        const markerTextWidth = markerSize * 0.92;
         const countText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         countText.setAttribute('x', String(x));
-        countText.setAttribute('y', String(y + 3));
+        countText.setAttribute('y', String(y));
         countText.setAttribute('text-anchor', 'middle');
+        countText.setAttribute('dominant-baseline', 'central');
         countText.setAttribute('font-size', String(markerTextSize));
         countText.setAttribute('font-weight', '700');
+        countText.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+        countText.setAttribute('textLength', String(markerTextWidth));
         countText.setAttribute('fill', 'var(--ffhc-color-marker-count, #000)');
-        countText.textContent = String(group.count);
+        countText.textContent = countLabel;
         markerGroup.appendChild(countText);
       }
 
       svg.appendChild(markerGroup);
     });
+  }
+
+  _getDoorMarkerTextSize(countLabel, markerSize) {
+    const digitCount = Math.max(String(countLabel).length, 1);
+    const scaleByDigits = {
+      1: 0.78,
+      2: 0.68,
+      3: 0.56,
+    };
+    return markerSize * (scaleByDigits[digitCount] || 0.48);
   }
 
   _extractDoorOpeningEvents(doorSeries, startTime, endTime) {

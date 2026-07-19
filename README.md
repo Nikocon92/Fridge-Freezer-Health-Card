@@ -88,7 +88,7 @@ Door markers on temperature chart:
 - Each door opening event is marked with an orange diamond at the event timestamp.
 - Openings clustered within a 10-minute window are merged into one diamond.
 - For merged clusters of 2 or more openings, the diamond displays the opening count.
-- The merged opening count text is sized at 50% of the diamond height for better visibility.
+- The merged opening count text is centered and scaled to fill the diamond without touching its edges.
 
 Temperature ranges used by the bar and history colors:
 
